@@ -216,6 +216,29 @@ func (s3 *S3) Get(path string) (io.ReadCloser, http.Header, error) {
 	return resp.Body, resp.Header, nil
 }
 
+// Head is similar to Get, but returns only the response headers. The response body is not
+// transferred across the network. This is useful for checking if a file exists remotely,
+// and what headers it was configured with.
+func (s3 *S3) Head(path string) (http.Header, error) {
+	req, er := http.NewRequest("HEAD", s3.resource(path, nil), nil)
+	if er != nil {
+		return http.Header{}, er
+	}
+
+	s3.signRequest(req)
+
+	resp, er := http.DefaultClient.Do(req)
+	if er != nil {
+		return http.Header{}, er
+	}
+
+	if resp.StatusCode != 200 {
+		return http.Header{}, fmt.Errorf("S3 Error: %s", resp.Status)
+	}
+
+	return resp.Header, nil
+}
+
 // Test attempts to write and read back a single, short file from S3. It is intended to be
 // used to test runtime configuration to fail quickly when credentials are invalid.
 func (s3 *S3) Test() error {
