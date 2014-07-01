@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// S3 provides a wrapper around your S3 credentials. It carries no other internal state 
+// S3 provides a wrapper around your S3 credentials. It carries no other internal state
 // and can be copied freely.
 type S3 struct {
 	bucket   string
@@ -186,8 +186,7 @@ func (s3 *S3) Put(r io.Reader, size int64, path string, md5sum []byte, contentTy
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		respBytes, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("S3 Error: %s\n%s", resp.Status, string(respBytes))
+		return wrapError(resp)
 	}
 
 	return nil
@@ -210,7 +209,7 @@ func (s3 *S3) Get(path string) (io.ReadCloser, http.Header, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, http.Header{}, fmt.Errorf("S3 Error: %s", resp.Status)
+		return nil, http.Header{}, wrapError(resp)
 	}
 
 	return resp.Body, resp.Header, nil
@@ -233,7 +232,7 @@ func (s3 *S3) Head(path string) (http.Header, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return http.Header{}, fmt.Errorf("S3 Error: %s", resp.Status)
+		return http.Header{}, wrapError(resp)
 	}
 
 	return resp.Header, nil
@@ -294,7 +293,7 @@ func (s3 *S3) StartMultipart(path string) (*S3Multipart, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("s3: start multipart failed (HTTP %d)\n%s", resp.StatusCode, string(xmlBytes))
+		return nil, wrapError(resp)
 	}
 
 	var xmlResp s3multipartResp
