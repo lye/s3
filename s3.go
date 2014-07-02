@@ -38,7 +38,8 @@ func NewS3(bucket, accessId, secret string) *S3 {
 
 func (s3 *S3) signRequest(req *http.Request) {
 	amzHeaders := ""
-	resource := "/" + s3.bucket + req.URL.Path
+	resourceUrl, _ := url.Parse("/" + s3.bucket + req.URL.Path)
+	resource := resourceUrl.String()
 
 	/* Ugh, AWS requires us to order the parameters in a specific ordering for
 	 * signing. Makes sense, but is annoying because a map does not have a defined
