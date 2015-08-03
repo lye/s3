@@ -25,6 +25,7 @@ type S3 struct {
 	bucket   string
 	accessId string
 	secret   string
+	endpoint string
 }
 
 // NewS3 allocates a new S3 with the provided credentials.
@@ -33,6 +34,7 @@ func NewS3(bucket, accessId, secret string) *S3 {
 		bucket:   bucket,
 		accessId: accessId,
 		secret:   secret,
+		endpoint: fmt.Sprintf("%s.s3.amazonaws.com", bucket),
 	}
 }
 
@@ -99,7 +101,7 @@ func (s3 *S3) signRequest(req *http.Request) {
 }
 
 func (s3 *S3) resource(path string, values url.Values) string {
-	tmp := fmt.Sprintf("http://%s.s3.amazonaws.com/%s", s3.bucket, path)
+	tmp := fmt.Sprintf("https://%s/%s", s3.endpoint, path)
 
 	if values != nil {
 		tmp += "?" + values.Encode()
@@ -187,7 +189,14 @@ func (s3 *S3) Put(r io.Reader, size int64, path string, md5sum []byte, contentTy
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return wrapError(resp)
+		er := wrapError(resp)
+
+		if newEndpoint := er.newEndpoint(); newEndpoint != "" {
+			s3.endpoint = newEndpoint
+			er.ShouldRetry = true
+		}
+
+		return er
 	}
 
 	return nil
@@ -210,7 +219,14 @@ func (s3 *S3) Get(path string) (io.ReadCloser, http.Header, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, http.Header{}, wrapError(resp)
+		er := wrapError(resp)
+
+		if newEndpoint := er.newEndpoint(); newEndpoint != "" {
+			s3.endpoint = newEndpoint
+			er.ShouldRetry = true
+		}
+
+		return nil, http.Header{}, er
 	}
 
 	return resp.Body, resp.Header, nil
@@ -233,7 +249,14 @@ func (s3 *S3) Head(path string) (http.Header, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return http.Header{}, wrapError(resp)
+		er := wrapError(resp)
+
+		if newEndpoint := er.newEndpoint(); newEndpoint != "" {
+			s3.endpoint = newEndpoint
+			er.ShouldRetry = true
+		}
+
+		return http.Header{}, er
 	}
 
 	return resp.Header, nil
@@ -246,11 +269,23 @@ func (s3 *S3) Test() error {
 	testReader := strings.NewReader(testString)
 
 	if er := s3.Put(testReader, int64(testReader.Len()), "writetest", nil, "text/x-empty"); er != nil {
+		if s3er, ok := er.(*S3Error); ok {
+			if s3er.ShouldRetry {
+				return s3.Test()
+			}
+		}
+
 		return er
 	}
 
 	actualReader, header, er := s3.Get("writetest")
 	if er != nil {
+		if s3er, ok := er.(*S3Error); ok {
+			if s3er.ShouldRetry {
+				return s3.Test()
+			}
+		}
+
 		return er
 	}
 	defer actualReader.Close()
@@ -294,7 +329,14 @@ func (s3 *S3) StartMultipart(path string) (*S3Multipart, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, wrapError(resp)
+		er := wrapError(resp)
+
+		if newEndpoint := er.newEndpoint(); newEndpoint != "" {
+			s3.endpoint = newEndpoint
+			er.ShouldRetry = true
+		}
+
+		return nil, er
 	}
 
 	var xmlResp s3multipartResp

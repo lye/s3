@@ -39,6 +39,10 @@ func TestS3(t *testing.T) {
 func TestS3RoundTrip(t *testing.T) {
 	s3 := getS3(t)
 
+	if er := s3.Test(); er != nil {
+		t.Fatal(er)
+	}
+
 	testStr := "hello"
 	testBuf := bytes.NewBuffer([]byte(testStr))
 	testPath := ".hellopath"
@@ -65,6 +69,10 @@ func TestS3RoundTrip(t *testing.T) {
 
 func TestS3Multipart(t *testing.T) {
 	s3 := getS3(t)
+
+	if er := s3.Test(); er != nil {
+		t.Fatal(er)
+	}
 
 	testStr := "hello"
 	testBuf := bytes.NewBuffer([]byte(testStr))
@@ -102,6 +110,10 @@ func TestS3Multipart(t *testing.T) {
 
 func TestS3Multipart2(t *testing.T) {
 	s3 := getS3(t)
+
+	if er := s3.Test(); er != nil {
+		t.Fatal(er)
+	}
 
 	testStr := "HELLO"
 	testBuf := bytes.NewBuffer([]byte(testStr))
